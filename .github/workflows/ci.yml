@@ -1,0 +1,138 @@
+name: C/ASM CI
+
+on:
+  push:
+    branches: [ "main" ]
+    tags:    # релизы создаются при push тега вида v*
+      - 'v*'
+  pull_request:
+    branches: [ "main" ]
+# Настройка конкурентности
+# group: определяет уникальный идентификатор для группы запусков.
+# В данном случае группа привязана к имени workflow и ссылке на ветку/PR.
+# cancel-in-progress: true заставляет GitHub отменять старый запуск, если пришел новый в ту же группу.    
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15 # Принудительная остановка через 15 минут
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        submodules: 'recursive' # Важно для подключения bignum-common
+
+    - name: Download vendor libraries dist artifacts
+      env:
+        # Используем токен для доступа к API (в т.ч. для приватных репозиториев, если токен имеет права)
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        set -euo pipefail
+        
+        # Проходим по всем папкам внутри libs/
+        for dir in libs/*/; do
+          # Убираем слеш на конце для удобства
+          dir=${dir%/}
+          libname=$(basename "$dir")
+          
+          # Проверяем, что это вендорная библиотека (нет Makefile, src, include)
+          if [ -d "$dir" ] && [ ! -f "$dir/Makefile" ] && [ ! -d "$dir/src" ] && [ ! -d "$dir/include" ]; then
+            echo "========================================"
+            echo "🔄 Processing vendor library: $libname"
+            
+            REPO="${{ github.repository_owner }}/$libname"
+            BRANCH="main"
+            
+            # 1️⃣ Последний успешный run в выбранной ветке
+            RUN_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${REPO}/actions/runs?branch=${BRANCH}&status=success&per_page=1" | \
+              jq -r '.workflow_runs[0].id'  )
+              
+            if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
+              echo "❌ Не удалось получить RUN_ID для $REPO"
+              exit 1
+            fi
+
+            # 2️⃣ URL артефакта с именем dist
+            ARTIFACT_URL=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}/artifacts" | \
+              jq -r '.artifacts[] | select(.name=="dist"  ) | .archive_download_url')
+              
+            if [[ -z "$ARTIFACT_URL" || "$ARTIFACT_URL" == "null" ]]; then
+              echo "❌ Не найден артефакт dist для $REPO"
+              exit 1
+            fi
+
+            # 3️⃣ Скачиваем и распаковываем прямо в libs/$libname/dist
+            curl -L -H "Authorization: token $GITHUB_TOKEN" \
+                 -H "Accept: application/vnd.github+json" \
+                 -o dist.zip "$ARTIFACT_URL"
+                 
+            mkdir -p "$dir/dist"
+            unzip -o -q dist.zip -d "$dir/dist"
+            rm dist.zip
+            echo "✅ $libname артефакт помещён в $dir/dist"
+          fi
+        done
+
+    - name: Install build dependencies
+      run: sudo apt-get update && sudo apt-get install -y build-essential yasm cppcheck valgrind
+
+    - name: Build project (Release)
+      run: make build CONFIG=release
+
+    - name: Run static analysis
+      run: make lint
+
+    - name: Run unit tests (Release)
+      run: make test CONFIG=release && make test_sanitize SAN=address CONFIG=release && make test_sanitize SAN=undefined CONFIG=release && make test_helgrind CONFIG=release
+
+    - name: Create distribution
+      run: make dist
+
+    - name: Upload dist artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: dist
+        path: dist
+
+  release:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15 # Принудительная остановка через 15 минут    
+    permissions:
+      contents: write
+    if: startsWith(github.ref, 'refs/tags/v')   # только для тегов вида v*
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        submodules: 'recursive'
+
+    # Важно: для релиза нам тоже нужны скачанные зависимости, так как make dist их использует.
+    # Но так как мы уже собрали dist в предыдущей джобе, мы просто скачиваем готовый артефакт текущего проекта.
+    - name: Download dist artifact
+      uses: actions/download-artifact@v7
+      with:
+        name: dist
+        path: dist
+
+    - name: Pack dist
+      id: dist
+      run: |
+        ARCHIVE="lib-${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz"
+        tar -C dist -czf "$ARCHIVE" .
+        echo "archive=$ARCHIVE" >> $GITHUB_OUTPUT
+
+    - name: Create Release and Upload Asset via CLI
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create ${{ github.ref_name }} \
+          --title "${{ github.ref_name }}" \
+          --notes "Release for ${{ github.ref_name }}" \
+          ${{ steps.dist.outputs.archive }}

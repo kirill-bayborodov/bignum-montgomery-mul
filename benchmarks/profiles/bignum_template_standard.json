@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "description": "Standard deterministic regression matrix for the in-place bignum_template left-shift operation.",
+  "profiles": [
+    {
+      "id": "zero-one-end-to-end",
+      "input_kind": "zero",
+      "operation_kind": "shift-zero",
+      "measure_mode": "end-to-end",
+      "size_profile": "one",
+      "capacity_profile": "normal"
+    },
+    {
+      "id": "nonzero-one-bit-kernel",
+      "input_kind": "nonzero",
+      "operation_kind": "shift-bit",
+      "measure_mode": "kernel-only",
+      "size_profile": "one",
+      "capacity_profile": "normal"
+    },
+    {
+      "id": "nonzero-quarter-word-kernel",
+      "input_kind": "nonzero",
+      "operation_kind": "shift-word",
+      "measure_mode": "kernel-only",
+      "size_profile": "quarter",
+      "capacity_profile": "normal"
+    },
+    {
+      "id": "nonzero-half-combined-kernel",
+      "input_kind": "nonzero",
+      "operation_kind": "shift-combined",
+      "measure_mode": "kernel-only",
+      "size_profile": "half",
+      "capacity_profile": "normal"
+    },
+    {
+      "id": "nonzero-variable-random-end-to-end",
+      "input_kind": "nonzero",
+      "operation_kind": "shift-random",
+      "measure_mode": "end-to-end",
+      "size_profile": "variable",
+      "capacity_profile": "normal"
+    },
+    {
+      "id": "mixed-variable-mixed-end-to-end",
+      "input_kind": "mixed",
+      "operation_kind": "shift-mixed",
+      "measure_mode": "end-to-end",
+      "size_profile": "variable",
+      "capacity_profile": "normal"
+    },
+    {
+      "id": "nonzero-near-capacity-bit-kernel",
+      "input_kind": "nonzero",
+      "operation_kind": "shift-bit",
+      "measure_mode": "kernel-only",
+      "size_profile": "near-capacity",
+      "capacity_profile": "near-capacity"
+    },
+    {
+      "id": "nonzero-near-capacity-bit-end-to-end",
+      "input_kind": "nonzero",
+      "operation_kind": "shift-bit",
+      "measure_mode": "end-to-end",
+      "size_profile": "near-capacity",
+      "capacity_profile": "near-capacity"
+    }
+  ]
+}

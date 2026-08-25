@@ -1,0 +1,78 @@
+name: Performance Regression Check
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  perf-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential yasm valgrind
+
+      # --- 1. ЗАМЕР БАЗОВОЙ ЛИНИИ (Ветка main) ---
+      - name: Checkout base branch (main)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          submodules: 'recursive'
+
+      - name: Build and profile baseline
+        run: |
+          make clean
+          # Собираем бинарник бенчмарка (игнорируем ошибки perf, если make bench пытается его запустить)
+          make bench CONFIG=debug || true 
+          
+          echo "Running Callgrind on main branch..."
+          valgrind --tool=callgrind --callgrind-out-file=callgrind.base ./bin/bench_bignum_div_bignum > /dev/null 2>&1
+          
+          # Извлекаем количество инструкций (Ir) из файла отчета
+          BASE_IR=$(grep "summary:" callgrind.base | awk '{print $2}')
+          echo "BASE_IR=$BASE_IR" >> $GITHUB_ENV
+          echo "Baseline Instructions: $BASE_IR"
+
+      # --- 2. ЗАМЕР ТЕКУЩЕГО КОДА (Ветка Pull Request) ---
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          clean: true
+          submodules: 'recursive'
+
+      - name: Build and profile PR
+        run: |
+          make clean
+          make bench CONFIG=debug || true
+          
+          echo "Running Callgrind on PR branch..."
+          valgrind --tool=callgrind --callgrind-out-file=callgrind.pr ./bin/bench_bignum_div_bignum > /dev/null 2>&1
+          
+          PR_IR=$(grep "summary:" callgrind.pr | awk '{print $2}')
+          echo "PR_IR=$PR_IR" >> $GITHUB_ENV
+          echo "PR Instructions: $PR_IR"
+
+      # --- 3. СРАВНЕНИЕ И ПРИНЯТИЕ РЕШЕНИЯ ---
+      - name: Compare and Check for Regressions
+        run: |
+          echo "========================================"
+          echo "Baseline (main) : ${{ env.BASE_IR }} instructions"
+          echo "Pull Request    : ${{ env.PR_IR }} instructions"
+          echo "========================================"
+
+          # Вычисляем разницу в процентах с помощью awk
+          DIFF=$(awk "BEGIN {printf \"%.3f\", (${{ env.PR_IR }} - ${{ env.BASE_IR }}) / ${{ env.BASE_IR }} * 100}")
+          echo "Difference: $DIFF%"
+
+          # Если PR выполняет на 1% больше инструкций, роняем сборку (Fail)
+          if $(awk "BEGIN {exit !($DIFF > 1.0)}"); then
+            echo "❌ PERFORMANCE REGRESSION DETECTED!"
+            echo "The new code executes $DIFF% more instructions than the main branch."
+            echo "Please review your optimizations."
+            exit 1
+          elif $(awk "BEGIN {exit !($DIFF < -1.0)}"); then
+            echo "✅ PERFORMANCE IMPROVEMENT DETECTED!"
+            echo "Great job! The new code is $DIFF% faster."
+          else
+            echo "✅ Performance is stable (difference is within 1% margin)."
+          fi
