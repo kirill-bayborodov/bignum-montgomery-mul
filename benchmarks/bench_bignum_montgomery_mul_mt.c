@@ -1,6 +1,6 @@
 /**
- * @file bench_bignum_template_mt.c
- * @brief ISO C entry point for the multi-thread bignum_template benchmark.
+ * @file bench_bignum_montgomery_mul_mt.c
+ * @brief ISO C entry point for the multi-thread bignum_montgomery_mul benchmark.
  *
  * @details
  * The entry point creates the project-owned bignum adapter and delegates the
@@ -10,9 +10,9 @@
  */
 #include <stdlib.h>
 
-#include <benchmark_core.h>
+#include <benchmark_framework.h>
 
-#include "adapter/bignum_template_benchmark_adapter.h"
+#include "adapter/bignum_montgomery_mul_benchmark_adapter.h"
 
 /**
  * @brief Map named adapter/core outcomes to the ISO C process exit convention.
@@ -29,11 +29,11 @@
 int main(int argc, char **argv)
 {
     benchmark_adapter_t adapter;
-    bignum_template_benchmark_status_t adapter_status;
+    bignum_montgomery_mul_benchmark_status_t adapter_status;
     benchmark_core_status_t core_status;
 
-    adapter_status = bignum_template_benchmark_adapter_init(&adapter);
-    if (adapter_status != BIGNUM_TEMPLATE_BENCHMARK_STATUS_SUCCESS) {
+    adapter_status = bignum_montgomery_mul_benchmark_adapter_init(&adapter);
+    if (adapter_status != BIGNUM_MONTGOMERY_MUL_BENCHMARK_STATUS_SUCCESS) {
         return EXIT_FAILURE;
     }
     core_status = benchmark_core_run_mt(argc, argv, &adapter);

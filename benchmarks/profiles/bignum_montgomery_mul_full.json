@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "description": "Full deterministic C11/YASM Montgomery multiplication benchmark matrix.",
+  "profiles": [
+    {"id":"one-end-to-end","input_kind":"nonzero","operation_kind":"montgomery","measure_mode":"end-to-end","size_profile":"one","capacity_profile":"normal"},
+    {"id":"one-kernel","input_kind":"nonzero","operation_kind":"montgomery","measure_mode":"kernel-only","size_profile":"one","capacity_profile":"normal"},
+    {"id":"quarter-end-to-end","input_kind":"nonzero","operation_kind":"montgomery","measure_mode":"end-to-end","size_profile":"quarter","capacity_profile":"normal"},
+    {"id":"quarter-kernel","input_kind":"nonzero","operation_kind":"montgomery","measure_mode":"kernel-only","size_profile":"quarter","capacity_profile":"normal"},
+    {"id":"half-end-to-end","input_kind":"nonzero","operation_kind":"montgomery","measure_mode":"end-to-end","size_profile":"half","capacity_profile":"normal"},
+    {"id":"half-kernel","input_kind":"nonzero","operation_kind":"montgomery","measure_mode":"kernel-only","size_profile":"half","capacity_profile":"normal"},
+    {"id":"variable-random","input_kind":"nonzero","operation_kind":"montgomery-random","measure_mode":"end-to-end","size_profile":"variable","capacity_profile":"normal"},
+    {"id":"mixed-variable","input_kind":"mixed","operation_kind":"montgomery-mixed","measure_mode":"end-to-end","size_profile":"variable","capacity_profile":"normal"},
+    {"id":"near-capacity-end-to-end","input_kind":"nonzero","operation_kind":"montgomery","measure_mode":"end-to-end","size_profile":"near-capacity","capacity_profile":"near-capacity"},
+    {"id":"near-capacity-kernel","input_kind":"nonzero","operation_kind":"montgomery","measure_mode":"kernel-only","size_profile":"near-capacity","capacity_profile":"near-capacity"}
+  ]
+}
