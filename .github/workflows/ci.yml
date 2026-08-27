@@ -80,13 +80,16 @@ jobs:
         done
 
     - name: Install build dependencies
-      run: sudo apt-get update && sudo apt-get install -y build-essential yasm cppcheck valgrind
+      run: sudo apt-get update && sudo apt-get install -y build-essential yasm cppcheck valgrind doxygen graphviz
 
     - name: Build project (Release)
       run: make build CONFIG=release
 
     - name: Run static analysis
       run: make lint
+
+    - name: Build API documentation
+      run: make docs
 
     - name: Run unit tests (Release)
       run: make test CONFIG=release && make test_sanitize SAN=address CONFIG=release && make test_sanitize SAN=undefined CONFIG=release && make test_helgrind CONFIG=release

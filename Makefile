@@ -15,7 +15,7 @@ DATA_MODE ?= all_nonzero
 # Use these only for smoke tests; use the default workload for performance studies.
 # Matrix benchmark settings. The matrix executes its declared profiles directly
 # and writes raw samples plus a statistical JSON summary.
-BENCH_MATRIX_PROFILE ?= benchmarks/framework/profiles/full.json
+BENCH_MATRIX_PROFILE ?= $(BENCH_DIR)/profiles/$(LIB_NAME)_full.json
 BENCH_MATRIX_REPETITIONS ?= 7
 BENCH_MATRIX_ITERATIONS ?= 200000000
 BENCH_MATRIX_MT_TOTAL_ITERATIONS ?= 320000000
@@ -72,14 +72,14 @@ DIST_DIR = dist
 CORE_NAME := $(FAMILY_NAME)-core
 CORE_DIR  := $(LIBS_DIR)/$(CORE_NAME)
 REPORTS_DIR = $(BENCH_DIR)/reports
-# Pinned C11 framework dependency. The root gitlink is fixed at
-# benchmark-framework v1.0.0; its recursive submodules pin benchmark-core and json-lib.
+# Pinned C11 framework dependency. CI installs the reviewed public v1.0.0
+# flat distribution under dist; this project consumes its header, archive and tools.
 BENCHMARK_FRAMEWORK_DIR := $(LIBS_DIR)/benchmark-framework
 BENCHMARK_CORE_DIR := $(BENCHMARK_FRAMEWORK_DIR)/$(DIST_DIR)
-BENCHMARK_CORE_INCLUDE := $(BENCHMARK_CORE_DIR)/include
+BENCHMARK_CORE_INCLUDE := $(BENCHMARK_CORE_DIR)
 BENCHMARK_CORE_LIB := $(BENCHMARK_CORE_DIR)/libbenchmark_framework.a
-BENCH_MATRIX_TOOL := $(BENCHMARK_FRAMEWORK_DIR)/build/tools/bench_matrix
-BENCH_STATS_TOOL := $(BENCHMARK_FRAMEWORK_DIR)/build/tools/benchmark_stats
+BENCH_MATRIX_TOOL := $(BENCHMARK_CORE_DIR)/tools/bench_matrix
+BENCH_STATS_TOOL := $(BENCHMARK_CORE_DIR)/tools/benchmark_stats
 BENCH_ADAPTER_DIR := $(BENCH_DIR)/adapter
 BENCH_ADAPTER_SOURCE := $(BENCH_ADAPTER_DIR)/$(LIB_NAME)_benchmark_adapter.c
 BENCH_ADAPTER_HEADER := $(BENCH_ADAPTER_DIR)/$(LIB_NAME)_benchmark_adapter.h
@@ -307,7 +307,7 @@ KEEP_PERF ?= 1
 RECORD_OPT = -F 1000 -m 16M -e cycles,cache-misses,branch-misses -g --call-graph fp
 REPORT_OPT = --percent-limit 1.0 --sort comm,dso,symbol --symbol-filter=$(PERF_SYMBOL_FILTER)
 
-.PHONY: all build benchmark_framework lint test test_sanitize test_helgrind bench bench_full bench_cl bench_matrix bench_stat bench_stat_st bench_stat_mt install generate-header dist clean help show-calc unlink-symlink
+.PHONY: all build benchmark_framework lint docs test test_sanitize test_helgrind bench bench_full bench_cl bench_matrix bench_stat bench_stat_st bench_stat_mt install generate-header dist clean help show-calc unlink-symlink
 
 all: build
 build: $(OBJ) $(OBJECTS)
@@ -666,7 +666,11 @@ $(BIN_DIR)/%: $(TESTS_DIR)/%.c $(OBJ) $(OBJECTS) | $(BIN_DIR)
 	@$(CC) $(CFLAGS) $< $(OBJECTS) $(OBJ) -o $@ $(LDFLAGS) \
 	  $(if $(filter %_mt,$*),-pthread)
 benchmark_framework:
-#	@$(MAKE) -C $(BENCHMARK_FRAMEWORK_DIR) build CONFIG=release
+# @$(MAKE) -C $(BENCHMARK_FRAMEWORK_DIR) build CONFIG=release
+
+docs:
+	@$(MKDIR) $(BUILD_DIR)/docs
+	@sed 's#^OUTPUT_DIRECTORY.*#OUTPUT_DIRECTORY       = $(abspath $(BUILD_DIR)/docs)#; s#^STRIP_FROM_PATH.*#STRIP_FROM_PATH        = $(abspath .)#' docs/Doxyfile | doxygen -
 
 $(BENCHMARK_CORE_LIB): benchmark_framework
 
