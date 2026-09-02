@@ -1,0 +1,5 @@
+*.asm linguist-language=Assembly
+*.s linguist-language=Assembly
+*.c linguist-detectable=false
+*.h linguist-detectable=false
+Makefile linguist-detectable=false
