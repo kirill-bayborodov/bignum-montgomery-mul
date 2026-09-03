@@ -1,3 +1,0 @@
-[submodule "libs/bignum-core"]
-	path = libs/bignum-core
-	url = https://github.com/kirill-bayborodov/bignum-core.git
